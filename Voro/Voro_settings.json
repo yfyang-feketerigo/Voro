@@ -1,0 +1,17 @@
+{
+  "_comment": "目录末尾记得加 '/'",
+  "data_fpath": "./",
+  "fname_prefix": "data.restart.shear.wi.1.",
+  "fname_postfix": null,
+  "end_step": 28800,
+  "delta_step": 4800,
+  "equi_data_fpath": "./",
+  "equi_config_fname": "data.T0.42.Equi",
+  "output_path": "./test/",
+  "voro_nx": 8,
+  "voro_ny": 8,
+  "voro_nz": 4,
+  "voro_initmem": 40,
+  "type1_radius": 1,
+  "type2_radius": 1
+}
