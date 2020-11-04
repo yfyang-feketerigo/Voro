@@ -113,7 +113,7 @@ int main()
 			lz = zhi - zlo;
 			voro::container_periodic_poly container_shear(lx, xy, ly, xz, yz, lz, voro_nx, voro_ny, voro_nz, voro_initmem);
 			config_to_vorocontainer(config_shear, container_shear);
-			container_shear.compute_all_cells();
+			//container_shear.compute_all_cells();
 			std::vector<Voro_vertices> vec_vertices_shear;
 			std::vector<Voro_volume> vec_volume_shear;
 			get_voro_info(container_shear, config_shear.get_particle().size(), vec_vertices_shear, vec_volume_shear);

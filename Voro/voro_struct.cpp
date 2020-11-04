@@ -102,13 +102,24 @@ void voro_to_dump(const Configuration& config, string fname, const vector<Voro_v
 	vector<double> output_max_r(vertices.size());
 	for (size_t i = 0; i < output_max_r.size(); i++)
 	{
+		if (config.get_particle()[i].id != _vertices[i].center_pid)
+		{
+			throw "voro cell center pid squence not match configuration when output max vertex";
+		}
 		output_max_r[i] = _vertices[i].max_re_r();
 	}
-	vector<double> output_volume(volume.size());
+
+	vector<Voro_volume> _volume = sort_voro_volume(config.get_particle(), volume);
+	vector<double> output_volume(_volume.size());
 	for (size_t i = 0; i < output_volume.size(); i++)
 	{
-		output_volume[i] = volume[i].volume;
+		if (config.get_particle()[i].id != _volume[i].center_pid)
+		{
+			throw "voro cell center pid squence not match configuration when output volume";
+		}
+		output_volume[i] = _volume[i].volume;
 	}
+
 	config.to_dump(fname, { "max_r","volume" }, { output_max_r, output_volume });
 	return;
 }
