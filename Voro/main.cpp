@@ -51,8 +51,8 @@ int main()
 
 		void mkdir(std::string path);
 		mkdir(output_path);
-		string vertices_dir = output_path + "Voro/";
-		mkdir(vertices_dir);
+		//string vertices_dir = output_path;
+		//mkdir(vertices_dir);
 		//string vertex_orders_dir = output_path + "vertex_orders_dir/";
 		//mkdir(vertex_orders_dir);
 		//string max_radius_squared = output_path + "max_radius_squared/";
@@ -79,6 +79,8 @@ int main()
 		int voro_nz = root["voro_nz"].asInt();
 		int voro_initmem = root["voro_initmem"].asInt();
 
+		clog << "start processing Voro info..." << endl;
+		clog << endl;
 		voro::container_periodic_poly container_equi(lx, xy, ly, xz, yz, lz, voro_nx, voro_ny, voro_nz, voro_initmem);
 		config_to_vorocontainer(config_equi, container_equi);
 		std::vector<Voro_vertices> vec_vertices_equi;
@@ -90,7 +92,7 @@ int main()
 		{
 			vec_vertices_equi[i].compute_re_r();
 		}
-		voro_to_dump(config_equi, vertices_dir + "max_r.txt", vec_vertices_equi, vec_volume_equi);
+		voro_to_dump(config_equi, output_path + "voro.0", vec_vertices_equi, vec_volume_equi);
 		container_equi.clear();
 
 		for (size_t i_step = delta_step; i_step <= end_step; i_step += delta_step)
@@ -115,7 +117,7 @@ int main()
 			std::vector<Voro_vertices> vec_vertices_shear;
 			std::vector<Voro_volume> vec_volume_shear;
 			get_voro_info(container_shear, config_shear.get_particle().size(), vec_vertices_shear, vec_volume_shear);
-			string ofname = vertices_dir + "voro." + to_string(i_step);
+			string ofname = output_path + "voro." + to_string(i_step);
 			voro_to_dump(config_shear, ofname, vec_vertices_shear, vec_volume_shear);
 		}
 	}

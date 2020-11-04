@@ -75,7 +75,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="voro++\voro++-5.0-Windows.lib">
+    <Library Include="voro++\voro++-5.0-Windows-x64-release.lib">
       <Filter>资源文件</Filter>
     </Library>
   </ItemGroup>
