@@ -15,8 +15,8 @@ Particle& seek_id(vector<Particle>& vec_p, size_t _id)
 
 }
 
-double RADIUS_CONST::type1_radius = 0;
-double RADIUS_CONST::type2_radius = 0;
+double RADIUS_CONST::type1_radius = 1;
+double RADIUS_CONST::type2_radius = 1;
 double radius(const Particle& pa)
 {
 

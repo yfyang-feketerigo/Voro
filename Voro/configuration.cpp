@@ -14,6 +14,7 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 	if (infile.is_open())
 	{
 		clog << "Processing data file head information..." << endl;
+		//获取时间步信息
 		getline(infile, firstline); //1st line
 		string str_timestep;
 		for (size_t i = firstline.size() - 1; i > 0; i--)
@@ -28,8 +29,8 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 			}
 		}
 		timestep = stoull(str_timestep); //string to unsigned long long
-		//cout << timestep << endl;
 
+		//跳过描述信息
 		infile.ignore(LINE_SKIP_MAX, '\n'); //2nd line
 
 		infile >> particle_num;
@@ -42,19 +43,28 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 
 		HEAD_INFO_LINE = 5;
 
+		/*
+		* 读入x边界
+		*/
 		infile >> xlo >> xhi;
 		infile.ignore(LINE_SKIP_MAX, '\n'); //6th line
 		HEAD_INFO_LINE++;
 
+		/*
+		* 读入y边界
+		*/
 		infile >> ylo >> yhi;
 		infile.ignore(LINE_SKIP_MAX, '\n'); //7th line
 		HEAD_INFO_LINE++;
 
+		/*
+		* 读入z边界
+		*/
 		infile >> zlo >> zhi;
 		infile.ignore(LINE_SKIP_MAX, '\n'); //8th line
 		HEAD_INFO_LINE++;
 
-		if (_boxtype == BoxType::tilt)
+		if (_boxtype == BoxType::tilt) //三斜盒子的处理
 		{
 			infile >> xy >> xz >> yz;
 			infile.ignore(LINE_SKIP_MAX, '\n'); //9th line
@@ -64,7 +74,7 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 		HEAD_INFO_LINE++;
 
 
-		string string_mass_info;
+		string string_mass_info; //读入粒子质量信息
 		for (size_t i = 0; i < 3 + type_num; i++)
 		{
 			getline(infile, string_mass_info);
@@ -74,7 +84,9 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 		//infile.ignore(LINE_SKIP_MAX, '\n'); //15th line
 
 		size_t total_pair_line = 0;
-		switch (_pairstyle)
+		size_t pair_info_space_line = 3;
+
+		switch (_pairstyle) //处理粒子势能信息
 		{
 		case Configuration::PairStyle::single:
 			total_pair_line = type_num;
@@ -83,11 +95,14 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 			total_pair_line += type_num;
 			total_pair_line += type_num * (type_num - 1) / 2;
 			break;
+		case Configuration::PairStyle::none:
+			total_pair_line = 0;
+			pair_info_space_line = 0;
 		default:
 			break;
 		}
 		string string_pair_info;
-		for (size_t i = 0; i < 3 + total_pair_line; i++)
+		for (size_t i = 0; i < pair_info_space_line + total_pair_line; i++)
 		{
 			getline(infile, string_pair_info);
 			strvec_pair_info.push_back(string_pair_info);
@@ -95,7 +110,7 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 		HEAD_INFO_LINE += strvec_pair_info.size();
 
 
-		getline(infile, str_atoms_info);
+		getline(infile, str_atoms_info); //粒子描述信息
 		HEAD_INFO_LINE++;
 		infile.ignore(LINE_SKIP_MAX, '\n');
 		HEAD_INFO_LINE++;
@@ -104,14 +119,17 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 	else
 	{
 		cerr << "File " << config_file << " open failed!" << endl;
-		throw config_file;
+		throw std::exception(config_file.c_str());
 	}
 	infile.close();
 
+	/*
+	* 屏幕输出读入的data文件信息，用于校验差错
+	*/
 	clog << firstline << endl;;
 	clog << "Configuration data file " << config_file << " has " << particle_num << " particles" << endl;
 	clog << "Configuration has " << type_num << " particle type(s)" << endl;
-	clog << "Time Step: " << timestep << endl;;
+	clog << "Time Step: " << timestep << endl;
 	for (size_t i = 0; i < strvec_mass_info.size(); i++)
 	{
 		clog << strvec_mass_info[i] << endl;
@@ -133,6 +151,10 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 	clog << "File GAP LINE: " << GAP_LINE << endl;
 	Input in_data(config_file, HEAD_INFO_LINE);
 	clog << endl;
+
+	/*
+	* 开始处理粒子坐标信息
+	*/
 	clog << "Reading coordinates..." << endl;
 	in_data.open_file();
 	in_data.skiphead();
@@ -150,13 +172,18 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 		vec_particle[i].box_z = (int)in_data.get_data()[7];
 	}
 
-	in_data.skip_line(GAP_LINE);
+	in_data.skip_line(GAP_LINE); //跳过坐标与速度间空行
 	clog << "Coordinates have been read!" << endl;
+
+	/*
+	* 开始处理粒子速度信息
+	*/
 	clog << "Reading velocities..." << endl;
 	for (size_t i = 0; i < particle_num; i++)
 	{
 		in_data.read_line_data();
 		Particle& p_particle = seek_id(vec_particle, (size_t)in_data.get_data()[0]);
+		p_particle.vx = in_data.get_data()[1];
 		p_particle.vy = in_data.get_data()[2];
 		p_particle.vz = in_data.get_data()[3];
 	}
@@ -166,7 +193,7 @@ Configuration::Configuration(std::string config_file, BoxType _boxtype, PairStyl
 	infile.close();
 }
 
-size_t Configuration::__add_particle(const Particle& new_pa)
+size_t Configuration::__add_particle(const Particle& new_pa) //新添加一个粒子
 {
 	bool flag_inbox = new_pa.rx >= xlo && new_pa.rx <= xhi
 		&& new_pa.ry >= ylo && new_pa.ry <= yhi
@@ -174,7 +201,7 @@ size_t Configuration::__add_particle(const Particle& new_pa)
 	if (!flag_inbox)
 	{
 		cerr << "new particle coordiantion is not in box!" << endl;
-		throw "new particle coordiantion is not in box!";
+		throw std::exception("new particle coordiantion is not in box!");
 	}
 	bool flag_oldtype = true;
 	for (size_t i = 0; i < vec_particle.size(); i++)
@@ -190,14 +217,14 @@ size_t Configuration::__add_particle(const Particle& new_pa)
 	return vec_particle.size();
 }
 
-void Configuration::to_data(string fname, BoxType _boxtype) const
+void Configuration::to_data(string fname, BoxType _boxtype) //以lammps data文件格式输出
 {
 	ofstream ofile;
 	ofile.open(fname);
 	if (!ofile.is_open())
 	{
 		cerr << fname << " open failed" << endl;
-		throw (fname + " open failed");
+		throw std::exception((fname + " open failed").c_str());
 	}
 	ofile << "LAMMPS data file via C++, Configuration class, timestep = " << timestep << endl;
 	ofile << endl;
@@ -224,7 +251,7 @@ void Configuration::to_data(string fname, BoxType _boxtype) const
 	ofile << endl;
 	for (size_t i = 0; i < vec_particle.size(); i++)
 	{
-		const Particle& pa = vec_particle[i];
+		Particle& pa = vec_particle[i];
 		ofile << pa.id << " " << pa.type << " " << pa.rx << " " << pa.ry << " " << pa.rz << " "
 			<< pa.box_x << " " << pa.box_y << " " << pa.box_z << endl;
 	}
@@ -233,59 +260,78 @@ void Configuration::to_data(string fname, BoxType _boxtype) const
 	ofile << endl;
 	for (size_t i = 0; i < vec_particle.size(); i++)
 	{
-		const Particle& pa = vec_particle[i];
+		Particle& pa = vec_particle[i];
 		ofile << pa.id << " " << pa.vx << " " << pa.vy << " " << pa.vz << endl;
 	}
 	ofile.close();
 	return;
 }
 
-void Configuration::to_dump(string fname, std::initializer_list<string> add_para_name, std::initializer_list<vector<double>> add_para, vector<string> comments) const
+void Configuration::to_dump(string ofname, string opath, string style) const //以lammps dumpo文件格式输出, style 可以指定为不同样式
 {
+	clog << "converting data file to dump file..." << endl;
+	clog << "dump style: " << style << endl;
+	clog << "dump path: " << opath << endl;
+	clog << "dump file name: " << ofname << endl;
+	if (!boost::filesystem::exists(opath))
+	{
+		boost::filesystem::create_directories(opath);
+	}
+	string full_opath = opath + ofname;
+
 	ofstream ofile;
-	ofile.open(fname);
+	ofile.open(full_opath);
 	if (!ofile.is_open())
 	{
-		cerr << fname << " open failed" << endl;
-		throw (fname + " open failed");
+		cerr << full_opath << " open failed" << endl;
+		throw std::exception((full_opath + " open failed").c_str());
 	}
-	for (size_t i = 0; i < comments.size(); i++)
+
+	double lx = xhi - xlo;
+	double ly = yhi - ylo;
+	double lz = zhi - zlo;
+	if (style == "yjruan")
 	{
-		ofile << comments[i] << endl;
-	}
-	ofile << "ITEM: TIMESTEP" << endl;
-	ofile << timestep << endl;
-	ofile << "ITEM: NUMBER OF ATOMS" << endl;
-	ofile << particle_num << endl;
-	ofile << "ITEM: BOX BOUNDS xy xz yz pp pp pp " << endl;
-	auto xvi = { 0.,xy,xz,xy + xz };
-	auto x_minmax = std::minmax_element(xvi.begin(), xvi.end());
-	double visual_xlo = xlo + *x_minmax.first;
-	double visual_xhi = xhi + *x_minmax.second;
-	auto yvi = { 0.,yz };
-	auto y_minmax = std::minmax_element(yvi.begin(), yvi.end());
-	double visual_ylo = ylo + *y_minmax.first;
-	double visual_yhi = yhi + *y_minmax.second;
-	ofile << visual_xlo << " " << visual_xhi << " " << xy << endl;
-	ofile << visual_ylo << " " << visual_yhi << " " << xz << endl;
-	ofile << zlo << " " << zhi << " " << yz << endl;
-	ofile << "ITEM: ATOMS id type x y z ix iy iz ";
-	for (auto it_li = add_para_name.begin(); it_li < add_para_name.end(); it_li++)
-	{
-		ofile << *it_li << " ";
-	}
-	ofile << endl;
-	for (size_t i = 0; i < vec_particle.size(); i++)
-	{
-		const Particle& pa = vec_particle[i];
-		ofile << pa.id << " " << pa.type << " " << pa.rx << " " << pa.ry << " " << pa.rz << " ";
-		ofile << pa.box_x << " " << pa.box_y << " " << pa.box_z << " ";
-		for (auto it_li = add_para.begin(); it_li < add_para.end(); it_li++)
+		ofile << "ITEM: TIMESTEP" << endl;
+		ofile << timestep << endl;
+		ofile << "ITEM: NUMBER OF ATOMS" << endl;
+		ofile << particle_num << endl;
+		ofile << "ITME: BOX BOUNDS xy xz yz pp pp pp" << endl;
+		ofile.precision(15);
+
+		/*
+		* 注意此处边界的处理，data文件与dump文件格式不相同
+		*/
+		double xlo_bound = xlo + std::min({ 0.0, xy, xz, xy + xz });
+		double xhi_bound = xhi + std::max({ 0.0, xy, xz, xy + xz });
+
+		double ylo_bound = ylo + std::min({ 0.0, yz });
+		double yhi_bound = yhi + std::max({ 0.0, yz });
+
+		double zlo_bound = zlo;
+		double zhi_bound = zhi;
+
+		ofile << xlo_bound << " " << xhi_bound << " " << xy << endl;
+		ofile << ylo_bound << " " << yhi_bound << " " << xz << endl;
+		ofile << zlo_bound << " " << zhi_bound << " " << yz << endl;
+		ofile << "ITEM: ATOMES id xu yu zu" << endl;
+		for (size_t i = 0; i < vec_particle.size(); i++)
 		{
-			ofile << (*it_li)[i] << " ";
+			const Particle& p_pa = vec_particle[i];
+			double xu = get_rx_real(p_pa);
+			double yu = get_ry_real(p_pa);
+			double zu = get_rz_real(p_pa);
+			size_t id = p_pa.id;
+			ofile << id << " ";
+			ofile << xu << " ";
+			ofile << yu << " ";
+			ofile << zu << " ";
+			ofile << endl;
 		}
-		ofile << endl;
+		return;
 	}
-	ofile.close();
-	return;
+
+	cerr << "wrong dump style: " << style << endl;
+	throw std::exception(("wrong dump style: " + style).c_str());
+
 }
